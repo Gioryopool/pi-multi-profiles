@@ -76,6 +76,45 @@ describe("phase 2 foreground runtime", () => {
     await expect(manager.run({ agents: ["task", "background"], task: "work", mode: "background" }, { cwd: "/p", projectTrusted: true, sessionId: "background", orchestrator: {} })).resolves.toMatchObject({ mode: "background", results: [] });
   });
 
+  it("returns resolved send-message results from the public tool", async () => {
+    const sent = { accepted: true, state: "queued" };
+    const tools = createForegroundTools(
+      () => ({ sendMessage: async () => sent }) as any,
+      () => ({}),
+      "subagent_",
+    );
+    const result: any = await tools
+      .find((tool) => tool.name === "subagent_send_message")!
+      .execute(
+        "",
+        { task_id: "task-1", message: "hello" },
+        new AbortController().signal,
+        undefined,
+        { sessionManager: { getSessionId: () => "parent" } },
+      );
+    expect(result.details).toEqual(sent);
+    expect(result.content).toEqual([{ type: "text", text: JSON.stringify(sent) }]);
+  });
+
+  it("reports async send-message rejections as public-tool errors", async () => {
+    const tools = createForegroundTools(
+      () => ({ sendMessage: async () => { throw new Error("message rejected"); } }) as any,
+      () => ({}),
+      "subagent_",
+    );
+    const result: any = await tools
+      .find((tool) => tool.name === "subagent_send_message")!
+      .execute(
+        "",
+        { task_id: "task-1", message: "hello" },
+        new AbortController().signal,
+        undefined,
+        { sessionManager: { getSessionId: () => "parent" } },
+      );
+    expect(result).toMatchObject({ isError: true });
+    expect(result.content).toEqual([{ type: "text", text: "message rejected" }]);
+  });
+
   it("uses real TypeBox schemas with required and optional fields", () => {
     const tools = createForegroundTools(() => undefined, () => ({}), "subagent_");
     const schema: any = tools.find((tool) => tool.name === "subagent_run")!.parameters;
