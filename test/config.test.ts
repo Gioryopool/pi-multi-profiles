@@ -28,17 +28,19 @@ describe("profile configuration", () => {
     ).toMatch(/effort/);
   });
 
-  it("defaults missing shortcuts to ctrl+tab and migrates only the old generated default", () => {
-    expect(validateConfig({ version: 1, profiles: {} }).config?.shortcut).toBe("ctrl+tab");
-    expect(DEFAULT_SHORTCUT).toBe("ctrl+tab");
+  it("defaults missing shortcuts to alt+p and migrates only the old generated default", () => {
+    expect(validateConfig({ version: 1, profiles: {} }).config?.shortcut).toBe(
+      "alt+p",
+    );
+    expect(DEFAULT_SHORTCUT).toBe("alt+p");
     expect(
-      validateConfig({ version: 1, shortcut: "ctrl+alt+p", profiles: {} }).config
+      validateConfig({ version: 1, shortcut: "ctrl+tab", profiles: {} }).config
         ?.shortcut,
-    ).toBe("ctrl+tab");
+    ).toBe("alt+p");
     expect(
-      validateConfig({ version: 1, shortcut: "ctrl+shift+p", profiles: {} }).config
-        ?.shortcut,
-    ).toBe("ctrl+shift+p");
+      validateConfig({ version: 1, shortcut: "ctrl+alt+p", profiles: {} })
+        .config?.shortcut,
+    ).toBe("ctrl+alt+p");
   });
 
   it("lets trusted project profiles replace same-name global profiles as whole", () => {

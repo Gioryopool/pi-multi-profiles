@@ -13,7 +13,7 @@ Project configuration is never read or written unless Pi reports the project as 
 ```json
 {
   "version": 1,
-  "shortcut": "ctrl+tab",
+  "shortcut": "alt+p",
   "defaultProfile": "review work",
   "cycle": ["review work", "fast"],
   "profiles": {
@@ -41,7 +41,7 @@ Project configuration is never read or written unless Pi reports the project as 
 | Field | Meaning |
 | --- | --- |
 | `version` | Required schema version; currently `1`. |
-| `shortcut` | Optional global cycling shortcut. Defaults to `ctrl+tab` and is registered when the extension is created. |
+| `shortcut` | Optional global cycling shortcut. Defaults to `alt+p` and is registered when the extension is created. |
 | `defaultProfile` | Optional profile activated when a session has no stored active/off marker. It must name an existing profile. |
 | `cycle` | Optional unique list of existing profile names used by `next` and the shortcut. |
 | `profiles` | Required map of arbitrary nonempty profile names to profile definitions. |
@@ -93,9 +93,13 @@ Closing with dirty drafts asks whether to discard them. Deleting an unsaved draf
 
 ## Shortcut behavior
 
-The global cycling shortcut defaults to `ctrl+tab`. Invalid global shortcuts fall back to that value and are reported at `session_start`. Shortcut changes require a restart or `/reload` because Pi registers shortcuts at extension construction.
+The global cycling shortcut defaults to `alt+p`. Invalid global shortcuts fall back to that value and are reported at `session_start`. Shortcut changes require a restart or `/reload` because Pi registers shortcuts at extension construction.
 
-An existing `ctrl+alt+p` value from the pre-release generated default resolves to `ctrl+tab` after reload and is written as `ctrl+tab` on the next durable profile save. Other explicit shortcut values are preserved. `order` affects `/agent-profiles next` and shortcut cycling only when `cycle` is not configured.
+An existing generated `ctrl+tab` default resolves to `alt+p` after reload and is written as `alt+p` on the next durable profile save. Other explicit shortcut values are preserved. `order` affects `/agent-profiles next` and shortcut cycling only when `cycle` is not configured.
+
+### Terminal shortcut troubleshooting
+
+`alt+p` is a two-key terminal-safe default selected because the old default is terminal-owned in common terminals.
 
 ## Session behavior and rollback
 

@@ -21,11 +21,11 @@ const EFFORTS = new Set<ThinkingLevel>([
 
 const object = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === "object" && !Array.isArray(value);
-const has = (value: object, key: string) =>
+const has = (value: Record<string, unknown>, key: string) =>
   Object.prototype.hasOwnProperty.call(value, key);
 
-/** Pre-release migration for the only shortcut emitted by earlier versions. */
-const LEGACY_DEFAULT_SHORTCUT = "ctrl+alt+p";
+/** Migration for the old generated default emitted by earlier versions. */
+const LEGACY_DEFAULT_SHORTCUT = "ctrl+tab";
 
 export const normalizeAgent = (name: string) => name.trim().toLowerCase();
 
@@ -65,12 +65,11 @@ function route(value: unknown): PersistedRoute | undefined {
   return Object.keys(result).length ? result : undefined;
 }
 
-export function validateConfig(raw: unknown): { config?: Config; error?: string } {
-  if (
-    !object(raw) ||
-    raw.version !== CONFIG_VERSION ||
-    !object(raw.profiles)
-  ) {
+export function validateConfig(raw: unknown): {
+  config?: Config;
+  error?: string;
+} {
+  if (!object(raw) || raw.version !== CONFIG_VERSION || !object(raw.profiles)) {
     return { error: "expected version 1 and profiles object" };
   }
 
@@ -136,7 +135,9 @@ export function validateConfig(raw: unknown): { config?: Config; error?: string 
   if (raw.cycle !== undefined) {
     if (
       !Array.isArray(raw.cycle) ||
-      !raw.cycle.every((name) => typeof name === "string" && name in profiles) ||
+      !raw.cycle.every(
+        (name) => typeof name === "string" && name in profiles,
+      ) ||
       new Set(raw.cycle).size !== raw.cycle.length
     ) {
       return { error: "invalid cycle reference" };
@@ -156,10 +157,10 @@ export function validateConfig(raw: unknown): { config?: Config; error?: string 
       version: CONFIG_VERSION,
       ...(defaultProfile ? { defaultProfile } : {}),
       ...(cycle ? { cycle } : {}),
-          shortcut:
-            raw.shortcut === LEGACY_DEFAULT_SHORTCUT
-              ? DEFAULT_SHORTCUT
-              : (raw.shortcut as string | undefined) ?? DEFAULT_SHORTCUT,
+      shortcut:
+        raw.shortcut === LEGACY_DEFAULT_SHORTCUT
+          ? DEFAULT_SHORTCUT
+          : ((raw.shortcut as string | undefined) ?? DEFAULT_SHORTCUT),
       profiles,
     },
   };
