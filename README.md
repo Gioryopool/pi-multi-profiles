@@ -62,7 +62,7 @@ Trusted projects may add project-scoped profiles. Project configuration is never
 | Control | Action |
 | --- | --- |
 | `/agent-profiles` | Open the profile assignment panel. |
-| `ctrl+tab` | Cycle through configured profiles. |
+| `alt+p` | Cycle through configured profiles. |
 | `Tab` / `Shift+Tab` | Move between profile tabs and `+ new`. |
 | `Up` / `Down` / `j` / `k` | Move through assignments. |
 | `Enter` / `M` / `E` | Edit the selected model or effort. |
@@ -74,7 +74,7 @@ Trusted projects may add project-scoped profiles. Project configuration is never
 
 | Control | Action |
 | --- | --- |
-| `/subagents` / `ctrl+,` | Open execution history. |
+| `/subagents` / `alt+o` | Open execution history. |
 | `Up` / `Down` / `Enter` | Select a task and open its details. |
 | `ctrl+o` / `ctrl+t` | Toggle tool output or thinking. |
 | `ctrl+h` | Hand foreground work to the background. |
@@ -82,6 +82,10 @@ Trusted projects may add project-scoped profiles. Project configuration is never
 | Double `Esc` | Cancel active work for the current parent session. |
 
 See [Agent profiles and configuration](docs/agent-profiles.md) and [Subagent runtime](docs/subagent-runtime.md) for complete commands, configuration, and control behavior.
+
+## Terminal shortcut troubleshooting
+
+The two-key defaults are terminal-safe: `alt+p` and `alt+o` were selected because the old defaults are terminal-owned in common terminals.
 
 ## Compatibility and limits
 
@@ -101,7 +105,7 @@ Pi may also report expected extension issues when both packages register the sam
 
 | Startup message | Effect |
 | --- | --- |
-| `Extension shortcut conflict` for `ctrl+,` or `ctrl+h` | Only one handler can own each shortcut. When Pi says it is using `pi-multi-profiles/index.ts`, these keys open this package's history panel and hand off this package's foreground task; they do not invoke Joker's corresponding handlers. |
+| `Extension shortcut conflict` for `alt+o` or `ctrl+h` | Only one handler can own each shortcut. When Pi says it is using `pi-multi-profiles/index.ts`, these keys open this package's history panel and hand off this package's foreground task; they do not invoke Joker's corresponding handlers. |
 | Tools registered with the `agent_profiles_subagent_` namespace | Joker owns the canonical `subagent_*` names, so normal delegation runs through Joker. This package's runtime remains available only through explicit calls to its aliases. |
 
 The namespace message is a compatibility notice, not a failure. The shortcut message has a real but limited consequence: the handler named by Pi wins that key binding. Keep both packages when you want Joker to execute normal delegations while active profiles control their model and effort routing. Otherwise, install only one subagent runtime to avoid duplicated functionality and startup notices.

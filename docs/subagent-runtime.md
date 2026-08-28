@@ -47,7 +47,7 @@ The runtime reads existing global `<getAgentDir()>/subagents.json` and trusted-p
   "history_limit": 100,
   "enable_continue": true,
   "background_handoff_shortcut": "ctrl+h",
-  "history_panel_shortcut": "ctrl+,",
+  "history_panel_shortcut": "alt+o",
   "detail_cancel_shortcut": "x",
   "model_profiles": {
     "researcher": { "model": "openai/gpt-4.1", "effort": "high" }
@@ -68,7 +68,7 @@ The runtime reads existing global `<getAgentDir()>/subagents.json` and trusted-p
 | `history_limit` | `100`; positive integer rows retained per parent session. |
 | `enable_continue` | `true`; only explicit `false` disables continuation execution. |
 | `background_handoff_shortcut` | `ctrl+h`; trusted-project overrides must be `ctrl+` plus one letter. Reload after changing it. |
-| `history_panel_shortcut` | `ctrl+,`; other values are unsupported because Pi registers the global shortcut at construction. Project overrides are not applied. |
+| `history_panel_shortcut` | `alt+o`; the old `ctrl+,` value normalizes to it, and other values are unsupported because Pi registers the global shortcut at construction. Project overrides are not applied. |
 | `detail_cancel_shortcut` | `x`; must be one letter. |
 | `model_profiles` | `{}`; normalized per-agent routes. Project profiles apply only to project definitions and global profiles only to global definitions. |
 
@@ -99,11 +99,13 @@ Terminal background completion sends exactly one Pi follow-up with a collapsed p
 
 ## History panel
 
-`/subagents` opens a full-width, parent-session-isolated history panel; `ctrl+,` opens the same panel globally. The execution strip follows the focused task, and the detail view supports arrow keys, Page Up/Down, Home/End, and mouse-wheel scrolling. Opening the overlay enables terminal mouse tracking; closing or disposing it restores terminal mode.
+`alt+o` is a two-key terminal-safe default selected because the old `ctrl+,` default is terminal-owned in common terminals.
+
+`/subagents` opens a full-width, parent-session-isolated history panel; `alt+o` opens the same panel globally. The execution strip follows the focused task, and the detail view supports arrow keys, Page Up/Down, Home/End, and mouse-wheel scrolling. Opening the overlay enables terminal mouse tracking; closing or disposing it restores terminal mode.
 
 The header shows public agent, status, attempt, mode, model, effort, ID, duration, usage, context/activity summaries, and configured timeout/stall hints. Structured task, activity, and thread rows retain the final response. `ctrl+o` toggles tool output, `ctrl+t` toggles thinking, and `x` or `detail_cancel_shortcut` cancels only the selected queued/running task.
 
-The panel reads a bounded, sanitized exact-session timeline. It never renders agent definitions, instructions, nested-session paths, parent-session identifiers, or private runtime fields. Running cards show a bounded content-free completed activity trail and one explicit current activity, refreshing approximately every 500 ms.
+The panel reads a bounded, sanitized exact-session timeline. It never renders agent definitions, instructions, nested-session paths, parent-session identifiers, or private runtime fields. Running cards show a bounded completed activity trail and one explicit current activity, refreshing approximately every 500 ms. Parent live cards prefer up to three bounded standalone bold semantic-heading summaries authored by the nested assistant in thinking/reasoning updates; only the last heading in each update is considered. Unsafe headings are rejected, and safe generic activity fallbacks are used until semantic headings exist. Tool arguments, paths, full reasoning, and final assistant text never feed the parent card; `/subagents` retains the detailed thread.
 
 History is stored at `<getAgentDir()>/pi-agent-profiles/runtime/history.sqlite`; old Joker history is never read or imported. Rows are parent-session isolated and pruned to the newest `history_limit` rows per parent session. Stale in-progress work is marked interrupted after restart. Persistence is best effort: runtime execution remains available if history storage cannot be opened.
 
