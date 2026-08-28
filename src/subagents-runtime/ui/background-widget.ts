@@ -3,13 +3,14 @@ import { Key, matchesKey, type Component } from "@earendil-works/pi-tui";
 import { wrapLineToWidth } from "../render/text-width.js";
 import type { PublicForegroundTask } from "../types.js";
 
+type WidgetTask = Pick<PublicForegroundTask, "id" | "agent" | "mode" | "status" | "liveActivity">;
 type Entry = { key: string; line: string };
 export type BackgroundWidgetAction = { type: "focus-editor" } | { type: "open-task"; taskId: string };
 export type BackgroundWidgetInput = { consume?: boolean; action?: BackgroundWidgetAction } | undefined;
 
-const active = (task: PublicForegroundTask) => task.mode === "background" && (task.status === "queued" || task.status === "running");
-const activity = (task: PublicForegroundTask) => (task.liveActivity?.current?.label ?? task.liveActivity?.trail.at(-1)?.label ?? task.status).replace(/\s+/g, " ").trim();
-const entries = (tasks: PublicForegroundTask[]): Entry[] => {
+const active = (task: WidgetTask) => task.mode === "background" && (task.status === "queued" || task.status === "running");
+const activity = (task: WidgetTask) => (task.liveActivity?.current?.label ?? task.liveActivity?.trail.at(-1)?.label ?? task.status).replace(/\s+/g, " ").trim();
+const entries = (tasks: WidgetTask[]): Entry[] => {
   const running = tasks.filter(active);
   return running.length ? [{ key: "main", line: "main" }, ...running.map((task) => ({ key: task.id, line: `${task.agent} ${activity(task)}` }))] : [];
 };
@@ -18,7 +19,7 @@ const transientStorageError = (error: unknown) => error instanceof Error
   && (error as NodeJS.ErrnoException).code === "ERR_SQLITE_ERROR"
   && /database is (locked|busy)/i.test(error.message);
 
-export function renderBackgroundWidgetLines(tasks: PublicForegroundTask[], selectedKey?: string): string[] | undefined {
+export function renderBackgroundWidgetLines(tasks: WidgetTask[], selectedKey?: string): string[] | undefined {
   const items = entries(tasks); if (!items.length) return undefined;
   const current = selectedKey === undefined ? undefined : selected(items, selectedKey);
   return items.map((item) => `${item.key === current ? "●" : "○"} ${item.line}`);
@@ -27,7 +28,7 @@ export function renderBackgroundWidgetLines(tasks: PublicForegroundTask[], selec
 export class BackgroundWidgetState {
   private selectedKey = "main";
   private navigating = false;
-  constructor(private readonly tasks: () => PublicForegroundTask[], private readonly onChange?: () => void) {}
+  constructor(private readonly tasks: () => WidgetTask[], private readonly onChange?: () => void) {}
   renderLines() { return renderBackgroundWidgetLines(this.tasks(), this.navigating ? selected(entries(this.tasks()), this.selectedKey) : undefined) ?? []; }
   handleTerminalInput(data: string): BackgroundWidgetInput {
     const items = entries(this.tasks());
