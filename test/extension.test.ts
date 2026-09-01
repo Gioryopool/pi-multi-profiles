@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const globalConfig = vi.hoisted(() => ({
-  value: { version: 1, shortcut: "ctrl+shift+p", profiles: {} },
+  value: {
+    version: 1,
+    shortcut: "ctrl+shift+p",
+    profiles: {},
+  } as Config,
 }));
 const discovery = vi.hoisted(() => ({
   discover: (..._args: any[]) => ({
@@ -34,7 +38,22 @@ vi.mock("../src/subagents-runtime/discovery.js", () => ({
   readCompatibleSubagentsConfig: () => runtimeConfig.value,
 }));
 
-import extension from "../src/extension.js";
+import extensionImplementation, {
+  type ExtensionDependencies,
+} from "../src/extension.js";
+import type { Config } from "../src/types.js";
+
+const defaultTestStorage: NonNullable<ExtensionDependencies["storage"]> = {
+  read: async () => ({ config: globalConfig.value }),
+  mutate: async (_path, update) => {
+    globalConfig.value = update(globalConfig.value);
+    return globalConfig.value;
+  },
+};
+
+function extension(pi: any, dependencies: ExtensionDependencies = {}) {
+  extensionImplementation(pi, { storage: defaultTestStorage, ...dependencies });
+}
 
 function fakePi() {
   const commands = new Map<string, any>();
@@ -303,8 +322,54 @@ describe("real Pi extension registration", () => {
     globalConfig.value = { version: 1, shortcut: "ctrl+shift+p", profiles: {} };
   });
 
-  it("uses factory-only Pi and initializes from session_start context", async () => {
+  it("loads a scoped default at startup and clears it atomically when deleted", async () => {
     const pi = fakePi();
+    let config: any = {
+      version: 1,
+      shortcut: "ctrl+shift+p",
+      defaultProfile: "alpha",
+      profiles: { alpha: { order: 0 } },
+    };
+    let mutations = 0;
+    const storage = {
+      read: async () => ({ config }),
+      mutate: async (_path: string, update: (value: any) => any) => {
+        mutations++;
+        config = update(config);
+        return config;
+      },
+    };
+    extension(pi as any, { storage } as any);
+    const setStatus = vi.fn();
+    const notify = vi.fn();
+    const ctx = context({
+      model: undefined,
+      ui: {
+        notify,
+        setStatus,
+        select: async () => undefined,
+        input: async () => undefined,
+        confirm: async () => true,
+      },
+    });
+    await pi.lifecycle.get("session_start")({}, ctx);
+    expect(setStatus).toHaveBeenCalledWith("pi-agent-profiles", "alpha");
+    await pi.commands.get("agent-profiles").handler("delete alpha", ctx);
+    expect(notify).not.toHaveBeenCalled();
+    expect(mutations).toBe(1);
+    expect(config).toMatchObject({ profiles: {} });
+    expect(config).not.toHaveProperty("defaultProfile");
+  });
+
+  it("uses deterministic in-memory storage for factory-only Pi initialization", async () => {
+    globalConfig.value = {
+      version: 1,
+      shortcut: "ctrl+shift+p",
+      defaultProfile: "alpha",
+      profiles: { alpha: { order: 0 } },
+    };
+    const pi = fakePi();
+    const setStatus = vi.fn();
     extension(pi as any);
 
     expect(pi.commands.get("agent-profiles")).toMatchObject({
@@ -316,8 +381,18 @@ describe("real Pi extension registration", () => {
     });
     await pi.lifecycle.get("session_start")(
       { type: "session_start", reason: "startup" },
-      context(),
+      context({
+        model: undefined,
+        ui: {
+          notify() {},
+          setStatus,
+          select: async () => undefined,
+          input: async () => undefined,
+          confirm: async () => false,
+        },
+      }),
     );
+    expect(setStatus).toHaveBeenCalledWith("pi-agent-profiles", "alpha");
   });
 
   it("uses a trusted project handoff override through exact terminal input, not the registered default", async () => {

@@ -5,8 +5,8 @@ import type { CatalogAgent, ModelRef, PersistedRoute, Profile, ThinkingLevel } f
 
 export type PanelRowKind = "orchestrator" | "default" | "header" | "bulk" | "agent";
 export type PanelRow = { kind: PanelRowKind; label: string; group?: string; agent?: string };
-export type PanelSessionState = { drafts: Record<string, Profile>; names: string[]; scopes: Record<string, "global" | "project">; dirty: string[]; persisted: string[]; selectedTab: number; cursor: number; scroll: number };
-export type PanelAction = { type: "save" | "activate" | "delete" | "close"; name?: string; profile?: Profile; session: PanelSessionState; persisted?: boolean };
+export type PanelSessionState = { drafts: Record<string, Profile>; names: string[]; scopes: Record<string, "global" | "project">; dirty: string[]; persisted: string[]; defaultName?: string; selectedTab: number; cursor: number; scroll: number };
+export type PanelAction = { type: "save" | "activate" | "default" | "delete" | "close"; name?: string; profile?: Profile; session: PanelSessionState; persisted?: boolean };
 type Field = "model" | "effort";
 type Choice = { label: string; value: PersistedRoute[Field] | undefined };
 type Picker = { field: Field; index: number; search: string };
@@ -47,7 +47,7 @@ export function buildRows(_profile: Profile, agents: CatalogAgent[]): PanelRow[]
   return rows;
 }
 
-export type ProfilePanelOptions = { profiles: Record<string, Profile>; agents: CatalogAgent[]; scopes: Record<string, "global" | "project">; activeName?: string; models: (ModelRef & { name?: string })[]; focusName?: string; session?: PanelSessionState; startInCreate?: boolean; theme?: Theme; requestRender?: () => void; onAction?: (action: PanelAction) => void; projectTrusted?: boolean };
+export type ProfilePanelOptions = { profiles: Record<string, Profile>; agents: CatalogAgent[]; scopes: Record<string, "global" | "project">; activeName?: string; defaultName?: string; models: (ModelRef & { name?: string })[]; focusName?: string; session?: PanelSessionState; startInCreate?: boolean; theme?: Theme; requestRender?: () => void; onAction?: (action: PanelAction) => void; projectTrusted?: boolean };
 
 export class ProfilePanel implements Component {
   readonly drafts: Record<string, Profile>;
@@ -58,6 +58,7 @@ export class ProfilePanel implements Component {
   readonly dirty: Set<string>;
   readonly persisted: Set<string>;
   readonly activeName?: string;
+  readonly defaultName?: string;
   readonly theme?: Theme;
   readonly requestRender?: () => void;
   readonly onAction?: (action: PanelAction) => void;
@@ -82,6 +83,7 @@ export class ProfilePanel implements Component {
     this.dirty = new Set(state?.dirty);
     this.persisted = new Set(state?.persisted ?? Object.keys(options.profiles));
     this.activeName = options.activeName;
+    this.defaultName = state?.defaultName ?? options.defaultName;
     this.theme = options.theme;
     this.requestRender = options.requestRender;
     this.onAction = options.onAction;
@@ -92,8 +94,8 @@ export class ProfilePanel implements Component {
     if (options.startInCreate) this.create = "name";
   }
 
-  sessionState(): PanelSessionState { return { drafts: clone(this.drafts), names: [...this.names], scopes: { ...this.scopes }, dirty: [...this.dirty], persisted: [...this.persisted], selectedTab: this.selectedTab, cursor: this.cursor, scroll: this.scroll }; }
-  tabs() { return [...this.names.map((name, index) => `${index === this.selectedTab ? "[" : " "}${name === this.activeName ? "*" : ""}${name}${this.dirty.has(name) ? " ●" : ""} [${this.scopes[name] === "project" ? "P" : "G"}]${index === this.selectedTab ? "]" : ""}`), `${this.selectedTab === this.names.length ? "[+ new]" : "+ new"}`]; }
+  sessionState(): PanelSessionState { return { drafts: clone(this.drafts), names: [...this.names], scopes: { ...this.scopes }, dirty: [...this.dirty], persisted: [...this.persisted], defaultName: this.defaultName, selectedTab: this.selectedTab, cursor: this.cursor, scroll: this.scroll }; }
+  tabs() { return [...this.names.map((name, index) => `${index === this.selectedTab ? "[" : " "}${name === this.activeName ? "◆" : ""}${name}${this.dirty.has(name) ? " ●" : ""} [${this.scopes[name] === "project" ? "P" : "G"}]${index === this.selectedTab ? "]" : ""}`), `${this.selectedTab === this.names.length ? "[+ new]" : "+ new"}`]; }
   name() { return this.names[this.selectedTab]; }
   draft(name = this.name()) { return name ? this.drafts[name] : undefined; }
   rows() { const profile = this.draft(); return profile ? buildRows(profile, this.agents) : []; }
@@ -214,6 +216,7 @@ export class ProfilePanel implements Component {
     if (matchesKey(data, "r") || matchesKey(data, Key.shift("r"))) { if (row.kind === "bulk") { this.applyBulk(row, "model", undefined); this.applyBulk(row, "effort", undefined); } else if (row.kind !== "header") this.reset(row.kind === "orchestrator" ? "orchestrator" : row.kind === "default" ? "default" : "agent", row.agent); return; }
     if (matchesKey(data, "s") || matchesKey(data, Key.shift("s"))) return this.emit("save");
     if (matchesKey(data, "a") || matchesKey(data, Key.shift("a"))) return this.emit("activate");
+    if ((matchesKey(data, "d") || matchesKey(data, Key.shift("d"))) && this.name()) return this.emit("default");
     if (matchesKey(data, Key.delete) && this.name()) return this.emit("delete");
     if (matchesKey(data, Key.escape) || matchesKey(data, "q") || matchesKey(data, Key.shift("q"))) this.emit("close");
   }
@@ -240,5 +243,5 @@ function bulk(panel: ProfilePanel, row: PanelRow, field: Field) { const values =
 function card(lines: string[], width: number) { const inner = Math.max(1, width - 4); return [`╭${"─".repeat(inner + 2)}╮`, ...lines.map((line) => `│ ${pad(clip(line, inner), inner)} │`), `╰${"─".repeat(inner + 2)}╯`]; }
 function picker(panel: ProfilePanel) { const state = panel.picker!; const choices = panel.pickerChoices(); const start = Math.max(0, Math.min(state.index - 3, Math.max(0, choices.length - 7))); const title = `Select ${state.field} for ${panel.selectedRow().label}`; return [tone(panel, "accent", title), "", state.field === "model" ? `◎ ${state.search || "search..."}` : "", "", ...choices.slice(start, start + 7).map((choice, index) => `${start + index === state.index ? "▸" : " "} ${choice.label}`), "", tone(panel, "muted", state.field === "model" ? "↑/↓/j/k navigate • type search • Enter select • Esc back" : "↑/↓/j/k navigate • Enter select • Esc back")]; }
 function create(panel: ProfilePanel) { if (panel.create === "name") return [tone(panel, "accent", "Create profile"), "", "Profile name:", `${panel.createName.slice(0, panel.createCursor)}▏${panel.createName.slice(panel.createCursor)}`, panel.createError ? tone(panel, "error", panel.createError) : "", "", tone(panel, "muted", "Enter: continue • Esc: back")]; return [tone(panel, "accent", "Create profile"), "", "Choose profile scope:", `${panel.createScope === "global" ? "▸" : " "} Global`, ...(panel.projectTrusted ? [`${panel.createScope === "project" ? "▸" : " "} Project`] : []), "", tone(panel, "muted", "↑/↓/j/k select • Enter create • Esc back")]; }
-export function renderPanel(panel: ProfilePanel, width: number): string[] { if (width < 4) return [clip("", width)]; const inner = Math.max(1, width - 4); if (panel.create) return card(create(panel), width); if (panel.picker) return card(picker(panel), width); const rows = panel.rows(); const lines = [tone(panel, "accent", "Agent profile assignments"), tabLine(panel, inner), "", tone(panel, "muted", "Current assignments:"), ""]; const height = 8; panel.scroll = Math.max(0, Math.min(panel.scroll, Math.max(0, rows.length - height))); if (panel.cursor < panel.scroll) panel.scroll = panel.cursor; if (panel.cursor >= panel.scroll + height) panel.scroll = panel.cursor - height + 1; if (panel.scroll) lines.push(tone(panel, "muted", "  ↑ more")); for (let index = panel.scroll; index < Math.min(rows.length, panel.scroll + height); index++) lines.push(rows[index].kind === "header" ? tone(panel, "muted", `  ${rows[index].label}`) : assignment(panel, rows[index], inner, index === panel.cursor)); if (panel.scroll + height < rows.length) lines.push(tone(panel, "muted", "  ↓ more")); lines.push("", tone(panel, "muted", "↑/↓/j/k navigate • Enter/M model • E effort • Tab profiles"), tone(panel, "muted", "R reset • S save • A activate • N new • Del remove • Esc/q close")); return card(lines, width); }
+export function renderPanel(panel: ProfilePanel, width: number): string[] { if (width < 4) return [clip("", width)]; const inner = Math.max(1, width - 4); if (panel.create) return card(create(panel), width); if (panel.picker) return card(picker(panel), width); const rows = panel.rows(); const defaultProfile = `Default profile: ${panel.defaultName ?? "none"}`; const title = "Agent profile assignments"; const heading = `${title} • ${defaultProfile}`; const headingFits = visibleWidth(heading) <= inner; const headingLine = headingFits ? `${tone(panel, "accent", `${title} • `)}${tone(panel, "warning", defaultProfile)}` : tone(panel, "accent", title); const assignmentsLine = headingFits ? tone(panel, "muted", "Current assignments:") : `${tone(panel, "muted", "Current assignments: • ")}${tone(panel, "warning", defaultProfile)}`; const lines = [headingLine, tabLine(panel, inner), "", assignmentsLine, ""]; const height = 8; panel.scroll = Math.max(0, Math.min(panel.scroll, Math.max(0, rows.length - height))); if (panel.cursor < panel.scroll) panel.scroll = panel.cursor; if (panel.cursor >= panel.scroll + height) panel.scroll = panel.cursor - height + 1; if (panel.scroll) lines.push(tone(panel, "muted", "  ↑ more")); for (let index = panel.scroll; index < Math.min(rows.length, panel.scroll + height); index++) lines.push(rows[index].kind === "header" ? tone(panel, "muted", `  ${rows[index].label}`) : assignment(panel, rows[index], inner, index === panel.cursor)); if (panel.scroll + height < rows.length) lines.push(tone(panel, "muted", "  ↓ more")); lines.push("", tone(panel, "muted", "↑/↓/j/k navigate • Enter/M model • E effort • Tab profiles"), tone(panel, "muted", "R reset • S save • A activate • D default"), tone(panel, "muted", "N new • Del remove • Esc/Q close")); return card(lines, width); }
 function tabLine(panel: ProfilePanel, width: number) { const all = panel.tabs().join("  │  "); return visibleWidth(all) <= width ? all : panel.tabs()[panel.selectedTab] ?? "+ new"; }

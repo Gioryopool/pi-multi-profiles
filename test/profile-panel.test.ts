@@ -43,7 +43,7 @@ describe("profile assignment panel", () => {
     ]);
   });
 
-  it("marks selected, active, dirty, and scoped profile tabs", () => {
+  it("marks only the active session profile in tabs, while retaining dirty and scope state", () => {
     const panel = new ProfilePanel({
       profiles,
       agents,
@@ -52,7 +52,49 @@ describe("profile assignment panel", () => {
       models,
     });
     panel.dirty.add("beta");
-    expect(panel.tabs()).toEqual(["[*alpha [G]]", " beta ● [P]", "+ new"]);
+    expect(panel.tabs()).toEqual(["[◆alpha [G]]", " beta ● [P]", "+ new"]);
+  });
+
+  it("shows the configured startup default separately from the active profile and emits Default", () => {
+    const actions: string[] = [];
+    const panel = new ProfilePanel({
+      profiles,
+      agents,
+      scopes: { alpha: "global", beta: "project" },
+      activeName: "alpha",
+      defaultName: "beta",
+      models,
+      onAction: (action) => actions.push(action.type),
+    });
+    expect(panel.tabs()).toEqual(["[◆alpha [G]]", " beta [P]", "+ new"]);
+    const text = renderPanel(panel, 90).join("\n");
+    expect(text).toContain("Default profile: beta");
+    expect(text).toContain("D default");
+    input(panel, "d");
+    expect(actions).toEqual(["default"]);
+  });
+
+  it("renders an explicit missing startup default", () => {
+    const panel = new ProfilePanel({ profiles, agents, scopes: {}, models });
+    expect(renderPanel(panel, 90).join("\n")).toContain("Default profile: none");
+  });
+
+  it("moves the startup default beside current assignments when the heading is too narrow", () => {
+    const panel = new ProfilePanel({ profiles, agents, scopes: {}, defaultName: "beta", models });
+    const lines = renderPanel(panel, 50);
+    expect(lines.find((line) => line.includes("Agent profile assignments"))).not.toContain("Default profile:");
+    expect(lines.find((line) => line.includes("Current assignments:"))).toContain("Default profile: beta");
+  });
+
+  it("colors only the default-profile segment warning without affecting layout", () => {
+    const theme = { fg: (color: string, text: string) => `\u001b[${color === "accent" ? "36" : color === "warning" ? "33" : color === "muted" ? "2" : "0"}m${text}\u001b[0m` } as unknown as ProfilePanel["theme"];
+    const panel = new ProfilePanel({ profiles, agents, scopes: {}, defaultName: "beta", models, theme });
+    const wide = renderPanel(panel, 90);
+    const narrow = renderPanel(panel, 50);
+    expect(wide.find((line) => line.includes("Agent profile assignments"))).toContain("\u001b[36mAgent profile assignments • \u001b[0m\u001b[33mDefault profile: beta\u001b[0m");
+    expect(narrow.find((line) => line.includes("Current assignments:"))).toContain("\u001b[2mCurrent assignments: • \u001b[0m\u001b[33mDefault profile: beta\u001b[0m");
+    expect(wide.every((line) => visibleWidth(line) <= 90)).toBe(true);
+    expect(narrow.every((line) => visibleWidth(line) <= 50)).toBe(true);
   });
 
   it("restores exact tab and cursor from a panel session", () => {
@@ -188,7 +230,8 @@ describe("profile assignment panel", () => {
       const panel = new ProfilePanel({ profiles, agents, scopes: {}, models, projectTrusted: true });
       const assignment = renderPanel(panel, 72).join("\n");
       expect(assignment).toContain("↑/↓/j/k navigate • Enter/M model • E effort • Tab profiles");
-      expect(assignment).toContain("R reset • S save • A activate • N new • Del remove • Esc/q close");
+      expect(assignment).toContain("R reset • S save • A activate • D default");
+      expect(assignment).toContain("N new • Del remove • Esc/Q close");
       expect(assignment).not.toContain(" or ");
       input(panel, "m");
       expect(renderPanel(panel, 90).join("\n")).toContain("↑/↓/j/k navigate • type search • Enter select • Esc back");

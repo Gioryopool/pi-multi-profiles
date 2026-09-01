@@ -33,7 +33,7 @@ import {
   completionMessageDetails,
   renderSubagentCompletionMessage,
 } from "./subagents-runtime/render/completion-message.js";
-import { createStorage } from "./storage.js";
+import { createStorage, type Storage } from "./storage.js";
 import type {
   Config,
   ExtensionContext,
@@ -69,6 +69,7 @@ const terminalInputMatchesShortcut = (text: string, shortcut: string) => {
 };
 
 export type ExtensionDependencies = {
+  storage?: Storage;
   runtimeManagerFactory?: (
     config: CompatibleSubagentsConfig,
   ) => ForegroundTaskManager;
@@ -79,7 +80,7 @@ export default function extension(
   pi: PiLike,
   dependencies: ExtensionDependencies = {},
 ) {
-  const storage = createStorage();
+  const storage = dependencies.storage ?? createStorage();
   const manager = new ProfileManager(pi);
   // ExtensionAPI cannot enumerate tools; retain the neutral synchronous probe for compatible runtimes.
   let preloadedCatalog = false;
@@ -357,6 +358,7 @@ export default function extension(
     name: string,
     profile: Profile | undefined,
     scope: "global" | "project",
+    defaultProfile?: string,
   ) {
     if (scope === "project" && !ctx.isProjectTrusted()) {
       throw new Error(
@@ -369,7 +371,17 @@ export default function extension(
       const profiles = { ...current.profiles };
       if (profile) profiles[name] = profile;
       else delete profiles[name];
-      return { ...current, profiles };
+      const { defaultProfile: currentDefault, ...config } = current;
+      const nextDefault = profile
+        ? defaultProfile ?? currentDefault
+        : currentDefault === name
+          ? undefined
+          : currentDefault;
+      return {
+        ...config,
+        profiles,
+        ...(nextDefault ? { defaultProfile: nextDefault } : {}),
+      };
     });
     await load(ctx);
   }

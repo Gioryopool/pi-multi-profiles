@@ -58,6 +58,65 @@ it("reopens after save failure with the same draft session", async () => {
   await command.handler("", ctx); expect(calls).toBe(2); expect(notices).toContain("save failed");
 });
 
+it("persists Default in the selected profile scope without activating the session", async () => {
+  let command: any; let opens = 0; const saves: any[] = []; const calls: string[] = [];
+  const stateful: any = { ...manager(), use: async () => calls.push("use") };
+  registerCommands(piFor((value) => command = value) as any, stateful, async (...args: any[]) => { saves.push(args); });
+  const session = { drafts: { alpha: { order: 0 } }, names: ["alpha"], scopes: { alpha: "project" }, dirty: [], persisted: ["alpha"], selectedTab: 0, cursor: 0, scroll: 0 };
+  const ctx: any = { cwd: "/work", isProjectTrusted: () => true, modelRegistry: { getAvailable: () => [] }, sessionManager: { getSessionId: () => "s" }, ui: { notify() {}, confirm: async () => true, custom: async () => ++opens === 1 ? ({ type: "default", name: "alpha", profile: session.drafts.alpha, persisted: true, session }) : ({ type: "close", session }) } };
+  await command.handler("", ctx);
+  expect(saves).toEqual([[ctx, "alpha", { order: 0 }, "project", "alpha"]]);
+  expect(calls).toEqual([]);
+});
+
+it("keeps the effective project default marked after setting a global default", async () => {
+  let command: any; let opens = 0; const defaults: Array<string | undefined> = [];
+  const stateful: any = {
+    ...manager(),
+    config: { profiles: { global: { order: 0 }, project: { order: 1 } }, defaultProfile: "project" },
+    names: () => ["global", "project"],
+  };
+  registerCommands(piFor((value) => command = value) as any, stateful, async () => {
+    stateful.config.defaultProfile = "project";
+  }, undefined, () => ({ global: "global", project: "project" }));
+  const ctx: any = { cwd: "/work", isProjectTrusted: () => true, modelRegistry: { getAvailable: () => [] }, sessionManager: { getSessionId: () => "s" }, ui: {
+    notify() {}, confirm: async () => true,
+    custom: async (factory: any) => {
+      const panel = factory({ requestRender() {} }, undefined, undefined, () => {});
+      defaults.push(panel.defaultName);
+      return ++opens === 1
+        ? { type: "default", name: "global", profile: { order: 0 }, persisted: true, session: panel.sessionState() }
+        : { type: "close", session: panel.sessionState() };
+    },
+  } };
+  await command.handler("", ctx);
+  expect(defaults).toEqual(["project", "project"]);
+});
+
+it("marks the revealed global default after deleting the project default", async () => {
+  let command: any; let opens = 0; const defaults: Array<string | undefined> = [];
+  const stateful: any = {
+    ...manager(),
+    config: { profiles: { global: { order: 0 }, project: { order: 1 } }, defaultProfile: "project" },
+    names: () => ["global", "project"],
+  };
+  registerCommands(piFor((value) => command = value) as any, stateful, async () => {
+    stateful.config.defaultProfile = "global";
+  }, undefined, () => ({ global: "global", project: "project" }));
+  const ctx: any = { cwd: "/work", isProjectTrusted: () => true, modelRegistry: { getAvailable: () => [] }, sessionManager: { getSessionId: () => "s" }, ui: {
+    notify() {}, confirm: async () => true,
+    custom: async (factory: any) => {
+      const panel = factory({ requestRender() {} }, undefined, undefined, () => {});
+      defaults.push(panel.defaultName);
+      return ++opens === 1
+        ? { type: "delete", name: "project", persisted: true, session: panel.sessionState() }
+        : { type: "close", session: panel.sessionState() };
+    },
+  } };
+  await command.handler("", ctx);
+  expect(defaults).toEqual(["project", "global"]);
+});
+
 it("reopens after activate failure with the same draft session", async () => {
   let command: any; let calls = 0; const notices: string[] = [];
   const failing: any = { ...manager(), use: async () => { throw new Error("activate failed"); } };

@@ -38,6 +38,8 @@ Create `<getAgentDir()>/pi-agent-profiles/config.json`:
 }
 ```
 
+`defaultProfile` loads the named profile when a new Pi session starts. In the panel, `◆` marks the active session profile; press `D` on a profile to set that scope's startup default, while `A` activates only the current session.
+
 Reload Pi, then open `/agent-profiles` or activate the profile directly:
 
 ```text
@@ -66,9 +68,9 @@ Trusted projects may add project-scoped profiles. Project configuration is never
 | `Tab` / `Shift+Tab` | Move between profile tabs and `+ new`. |
 | `Up` / `Down` / `j` / `k` | Move through assignments. |
 | `Enter` / `M` / `E` | Edit the selected model or effort. |
-| `S` / `A` | Save, or save and activate the profile. |
+| `S` / `A` / `D` | Save, save and activate for this session, or set the startup default for the profile's scope. |
 | `N` / `R` / `Del` | Create, reset, or delete. |
-| `Esc` / `q` | Return or close the panel. |
+| `Esc` / `Q` | Return or close the panel. Lowercase `q` also works. |
 
 ### Subagents
 
