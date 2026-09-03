@@ -93,7 +93,7 @@ Each selected agent resolves mode independently. An invocation `mode` overrides 
 
 Foreground calls return the bounded result or error to the parent model. Model-visible task text is capped at 16,000 characters, so expanded cards cannot recover text beyond that retained boundary. Calls and results use compact colored cards; responses and errors are collapsed by default and `ctrl+o` expands them.
 
-Background launch returns immediately. While exact-session work is queued or running, a below-editor widget lists main and each task's status/current activity. `Down`/`Up` navigate; `Enter` on a task opens its history detail, while `Enter` on main returns to editor input. The widget disappears when no active work remains and does not capture input while the history panel is open.
+Background launch returns immediately. While exact-session work is queued or running, a below-editor widget lists main and each task's status/current activity. Navigation starts only from an empty editor: `Down`/`Up` navigate; `Enter` on a task opens its history detail, while `Enter` on main returns to editor input. The widget disappears when no active work remains and does not capture input while the history panel is open.
 
 Terminal background completion sends exactly one Pi follow-up with a collapsed package-owned card. Its model-visible content contains the bounded final response once. Card details exclude definitions, paths, parent-session identifiers, and raw runtime state.
 

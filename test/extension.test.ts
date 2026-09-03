@@ -542,6 +542,59 @@ describe("real Pi extension registration", () => {
     expect(backgroundTasks).toHaveBeenCalledTimes(3);
   });
 
+  it("starts background widget navigation only from an empty or unavailable editor", async () => {
+    const pi = fakePi();
+    const backgroundTasks = vi.fn(() => [
+      {
+        id: "background",
+        agent: "worker",
+        mode: "background",
+        status: "running",
+        liveActivity: { trail: [] },
+      },
+    ]);
+    let terminalHandler: ((data: string) => unknown) | undefined;
+    let editorText = "draft";
+    extension(
+      pi as any,
+      {
+        runtimeManagerFactory: () => ({
+          backgroundTasks,
+          updateConfig: vi.fn(),
+          bindNotifier: vi.fn(),
+          bindActivityListener: vi.fn(),
+        }),
+      } as any,
+    );
+    const ui = {
+      notify() {},
+      setStatus() {},
+      select: async () => undefined,
+      input: async () => undefined,
+      confirm: async () => false,
+      getEditorText: () => editorText,
+      onTerminalInput(handler: (data: string) => unknown) {
+        terminalHandler = handler;
+        return () => {};
+      },
+    };
+    const ctx = context({ ui });
+    await pi.lifecycle.get("session_start")({}, ctx);
+    backgroundTasks.mockClear();
+
+    expect(terminalHandler?.("\u001b[B")).toBeUndefined();
+    expect(terminalHandler?.("\u001bOB")).toBeUndefined();
+    expect(backgroundTasks).not.toHaveBeenCalled();
+
+    editorText = "";
+    expect(terminalHandler?.("\u001b[B")).toEqual({ consume: true });
+    expect(terminalHandler?.("\u001bOB")).toEqual({ consume: true });
+
+    delete (ui as any).getEditorText;
+    expect(terminalHandler?.("\u001b[B")).toEqual({ consume: true });
+    expect(terminalHandler?.("\u001bOB")).toEqual({ consume: true });
+  });
+
   it("cancels and removes the exact session runtime manager on shutdown", async () => {
     const pi = fakePi();
     const cancelSession = vi.fn();

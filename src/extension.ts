@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import { Key, matchesKey } from "@earendil-works/pi-tui";
 import { CONFIG_DIR_NAME, getAgentDir } from "@earendil-works/pi-coding-agent";
 import { registerCommands } from "./commands.js";
 import { emptyConfig, mergeConfigs, validateConfig } from "./config.js";
@@ -319,6 +320,16 @@ export default function extension(
     if (typeof onTerminalInput === "function") {
       const dispose = onTerminalInput.call(ctx.ui, (data: string) => {
         if (historyPanels.has(sessionId)) return undefined;
+        const getEditorText = (ctx.ui as any).getEditorText;
+        if (matchesKey(data, Key.down) && typeof getEditorText === "function") {
+          try {
+            const editorText = getEditorText.call(ctx.ui);
+            if (typeof editorText === "string" && editorText.length)
+              return undefined;
+          } catch {
+            /* unavailable editor text preserves widget navigation */
+          }
+        }
         const widgetInput = backgroundWidgets
           .get(sessionId)
           ?.handleTerminalInput(data);

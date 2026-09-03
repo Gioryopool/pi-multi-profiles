@@ -25,7 +25,7 @@ const shippedText = [
 it("declares the Pi extension package contract", () => {
   expect(pkg).toMatchObject({
     name: "pi-multi-profiles",
-    version: "0.1.5",
+    version: "0.1.6",
     license: "MIT",
     main: "./index.ts",
     publishConfig: { access: "public" },

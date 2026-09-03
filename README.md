@@ -83,6 +83,8 @@ Trusted projects may add project-scoped profiles. Project configuration is never
 | `x` | Cancel the selected queued or running task. |
 | Double `Esc` | Cancel active work for the current parent session. |
 
+Background-widget navigation starts only when the main editor is empty.
+
 See [Agent profiles and configuration](docs/agent-profiles.md) and [Subagent runtime](docs/subagent-runtime.md) for complete commands, configuration, and control behavior.
 
 ## Terminal shortcut troubleshooting
